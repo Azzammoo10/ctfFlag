@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux CTF - Validation des Flags</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .participant-info {
+            background: #f7fafc;
+            padding: 20px 30px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .participant-info h2 {
+            color: #2d3748;
+            font-size: 1.3em;
+        }
+
+        .progress-bar {
+            background: #e2e8f0;
+            height: 30px;
+            border-radius: 15px;
+            margin-top: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #48bb78 0%, #38a169 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .flags-section {
+            padding: 30px;
+        }
+
+        .flag-item {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .flag-item.correct {
+            border-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .flag-item.incorrect {
+            border-color: #f56565;
+            background: #fff5f5;
+        }
+
+        .flag-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .flag-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .flag-status {
+            font-size: 1.5em;
+            display: none;
+        }
+
+        .flag-item.correct .flag-status.success {
+            display: inline;
+        }
+
+        .flag-item.incorrect .flag-status.error {
+            display: inline;
+        }
+
+        .flag-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .flag-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: 1em;
+            font-family: 'Courier New', monospace;
+            transition: border-color 0.3s ease;
+        }
+
+        .flag-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .flag-item.correct .flag-input {
+            border-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .flag-item.incorrect .flag-input {
+            border-color: #f56565;
+            background: #fff5f5;
+        }
+
+        .check-btn {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s ease;
+        }
+
+        .check-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .check-btn:active {
+            transform: translateY(0);
+        }
+
+        .flag-item.correct .check-btn {
+            background: #48bb78;
+            cursor: not-allowed;
+        }
+
+        .feedback {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            display: none;
+        }
+
+        .feedback.show {
+            display: block;
+        }
+
+        .feedback.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .feedback.error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .submit-section {
+            padding: 30px;
+            background: #f7fafc;
+            text-align: center;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .submit-btn {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .submit-btn:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .final-result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .final-result.show {
+            display: block;
+        }
+
+        .final-result.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .final-result.partial {
+            background: #feebc8;
+            color: #744210;
+        }
+
+        .hint {
+            margin-top: 10px;
+            padding: 10px;
+            background: #bee3f8;
+            border-left: 4px solid #3182ce;
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: #2c5282;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚩 Linux Fundamentals CTF</h1>
+            <p>Validation des Flags</p>
+        </div>
+
+        <div class="participant-info">
+            <h2>👤 Participant: Khaoula</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar">0/8 Flags</div>
+            </div>
+        </div>
+
+        <div class="flags-section">
+            <!-- Level 1 -->
+            <div class="flag-item" data-level="1">
+                <div class="flag-header">
+                    <span class="flag-title">🎯 Level 1 - Basic Commands</span>
+                    <span class="flag-status success">✅</span>
+                    <span class="flag-status error">❌</span>
+                </div>
+                <div class="flag-input-group">
+                    <input type="text" class="flag-input" placeholder="FLAG{...}" data-answer="FLAG{KHAOULA_level1_first_step}">
+                    <button class="check-btn" onclick="checkFlag(1)">Vérifier</button>
+                </div>
+                <div class="feedback"></div>
+                <div class="hint">💡 Astuce: Cherche dans ton répertoire personnel avec <code>ls</code></div>
+            </div>
+
+            <!-- Level 2 -->
+            <div class="flag-item" data-level="2">
+                <div class="flag-header">
+                    <span class="flag-title">🎯 Level 2 - Navigation</span>
+                    <span class="flag-status success">✅</span>
+                    <span class="flag-status error">❌</span>
+                </div>
+                <div class="flag-input-group">
+                    <input type="text" class="flag-input" placeholder="FLAG{...}" data-answer="FLAG{KHAOULA_level2_keep_going}">
+                    <button class="check-btn" onclick="checkFlag(2)">Vérifier</button>
+                </div>
+                <div class="feedback"></div>
+                <div class="hint">💡 Astuce: Utilise <code>cd Documents</code> pour naviguer</div>
+            </div>
+
+            <!-- Level 3 -->
+            <div class="flag-item" data-level="3">
+                <div class="flag-header">
+                    <span class="flag-title">🎯 Level 3 - Creating Files</span>
+                    <span class="flag-status success">✅</span>
+                    <span class="flag-status error">❌</span>
+                </div>
+                <div class="flag-input-group">
+                    <input type="text" class="flag-input" placeholder="FLAG{...}" data-answer="FLAG{KHAOULA_level3_learning_fast}">
+                    <button class="check-btn" onclick="checkFlag(3)">Vérifier</button>
+                </div>
+                <div class="feedback"></div>
+                <div class="hint">💡 Astuce: Le flag est dans <code>shopping.txt</code></div>
+            </div>
+
+            <!-- Level 4 -->
+            <div class="flag-item" data-level="4">
+                <div class="flag-header">
+                    <span class="flag-title">🎯 Level 4 - File Operations</span>
+                    <span class="flag-status success">✅</span>
+                    <span class="flag-status error">❌</span>
+                </div>
+                <div class="flag-input-group">
+                    <input type="text" class="flag-input" placeholder="FLAG{...}" data-answer="FLAG{KHAOULA_level4_nice_progress}">
+                    <button class="check-btn" onclick="checkFlag(4)">Vérifier</button>
+                </div>
+                <div class="feedback"></div>
+                <div class="hint">💡 Astuce: Explore le dossier <code>practice</code></div>
+            </div>
+
+            <!-- Level 5 -->
+            <div class="flag-item" data-level="5">
+                <div class="flag-header">
+                    <span class="flag-title">🎯 Level 5 - Searching</span>
+                    <span class="flag-status success">✅</span>
+                    <span class="flag-status error">❌</span>
+                </div>
+                <div class="flag-input-group">
+                    <input type="text" class="flag-input" placeholder="FLAG{...}" data-answer="FLAG{KHAOULA_level5_you_found_it}">
+                    <button class="check-btn" onclick="checkFlag(5)">Vérifier</button>
+                </div>
+                <div class="feedback"></div>
+                <div class="hint">💡 Astuce: Utilise <code>grep "FLAG" *.txt</code> dans test_folder</div>
+            </div>
+
+            <!-- Level 6 -->
+            <div class="flag-item" data-level="6">
+                <div class="flag-header">
+                    <span class="flag-title">🎯 Level 6 - Combining Commands</span>
+                    <span class="flag-status success">✅</span>
+                    <span class="flag-status error">❌</span>
+                </div>
+                <div class="flag-input-group">
+                    <input type="text" class="flag-input" placeholder="FLAG{...}" data-answer="FLAG{KHAOULA_level6_linux_mindset}">
+                    <button class="check-btn" onclick="checkFlag(6)">Vérifier</button>
+                </div>
+                <div class="feedback"></div>
+                <div class="hint">💡 Astuce: Cherche dans <code>log.txt</code></div>
+            </div>
+
+            <!-- Level 7 -->
+            <div class="flag-item" data-level="7">
+                <div class="flag-header">
+                    <span class="flag-title">🎯 Level 7 - Real-World Scenario</span>
+                    <span class="flag-status success">✅</span>
+                    <span class="flag-status error">❌</span>
+                </div>
+                <div class="flag-input-group">
+                    <input type="text" class="flag-input" placeholder="FLAG{...}" data-answer="FLAG{KHAOULA_level7_real_world_ready}">
+                    <button class="check-btn" onclick="checkFlag(7)">Vérifier</button>
+                </div>
+                <div class="feedback"></div>
+                <div class="hint">💡 Astuce: Explore <code>my_project/documents/</code></div>
+            </div>
+
+            <!-- Level 8 -->
+            <div class="flag-item" data-level="8">
+                <div class="flag-header">
+                    <span class="flag-title">🎯 Level 8 - Final Challenge 🏆</span>
+                    <span class="flag-status success">✅</span>
+                    <span class="flag-status error">❌</span>
+                </div>
+                <div class="flag-input-group">
+                    <input type="text" class="flag-input" placeholder="FLAG{...}" data-answer="FLAG{KHAOULA_level8_linux_champion}">
+                    <button class="check-btn" onclick="checkFlag(8)">Vérifier</button>
+                </div>
+                <div class="feedback"></div>
+                <div class="hint">💡 Astuce: Utilise grep dans <code>web_project</code></div>
+            </div>
+        </div>
+
+        <div class="submit-section">
+            <button class="submit-btn" id="submitBtn" onclick="submitAll()">🏆 Soumettre Tous les Flags</button>
+            <div class="final-result" id="finalResult"></div>
+        </div>
+    </div>
+
+    <script>
+        let correctFlags = 0;
+        const totalFlags = 8;
+
+        function checkFlag(level) {
+            const flagItem = document.querySelector(`.flag-item[data-level="${level}"]`);
+            const input = flagItem.querySelector('.flag-input');
+            const feedback = flagItem.querySelector('.feedback');
+            const correctAnswer = input.dataset.answer;
+            const userAnswer = input.value.trim();
+
+            // Vérification
+            if (userAnswer === correctAnswer) {
+                flagItem.classList.remove('incorrect');
+                flagItem.classList.add('correct');
+                feedback.textContent = '🎉 Correct! Flag validé!';
+                feedback.className = 'feedback show success';
+                input.disabled = true;
+                
+                // Mise à jour du compteur
+                updateProgress();
+                
+                // Son de succès (optionnel)
+                playSuccessSound();
+            } else {
+                flagItem.classList.remove('correct');
+                flagItem.classList.add('incorrect');
+                feedback.textContent = '❌ Incorrect. Vérifie bien le flag dans le fichier.';
+                feedback.className = 'feedback show error';
+            }
+        }
+
+        function updateProgress() {
+            correctFlags = document.querySelectorAll('.flag-item.correct').length;
+            const progressBar = document.getElementById('progressBar');
+            const percentage = (correctFlags / totalFlags) * 100;
+            
+            progressBar.style.width = percentage + '%';
+            progressBar.textContent = `${correctFlags}/${totalFlags} Flags`;
+
+            // Activer le bouton submit si tous les flags sont corrects
+            const submitBtn = document.getElementById('submitBtn');
+            if (correctFlags === totalFlags) {
+                submitBtn.disabled = false;
+            }
+        }
+
+        function submitAll() {
+            const finalResult = document.getElementById('finalResult');
+            
+            if (correctFlags === totalFlags) {
+                finalResult.className = 'final-result show success';
+                finalResult.innerHTML = `
+                    <h2>🎊 FÉLICITATIONS KHAOULA! 🎊</h2>
+                    <p style="font-size: 1.2em; margin-top: 10px;">
+                        Tu as capturé tous les ${totalFlags} flags!<br>
+                        Tu maîtrises maintenant les bases de Linux! 🐧
+                    </p>
+                    <p style="margin-top: 15px; font-weight: bold;">
+                        Score: ${correctFlags}/${totalFlags} ✅
+                    </p>
+                `;
+                confetti();
+            } else {
+                finalResult.className = 'final-result show partial';
+                finalResult.innerHTML = `
+                    <h2>⚠️ Pas encore terminé!</h2>
+                    <p style="font-size: 1.1em; margin-top: 10px;">
+                        Tu as validé ${correctFlags}/${totalFlags} flags.<br>
+                        Continue, tu y es presque! 💪
+                    </p>
+                `;
+            }
+        }
+
+        function playSuccessSound() {
+            // Optionnel: jouer un son de succès
+            // const audio = new Audio('success.mp3');
+            // audio.play();
+        }
+
+        function confetti() {
+            // Animation de confettis (simple)
+            console.log('🎊 CONGRATULATIONS! 🎊');
+        }
+
+        // Permettre la validation avec la touche Entrée
+        document.querySelectorAll('.flag-input').forEach((input, index) => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    checkFlag(index + 1);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
