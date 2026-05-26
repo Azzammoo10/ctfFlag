@@ -1,70 +1,40 @@
 # ============================================
-#  keep_awake.ps1 - Prevents screen sleep
-#  by moving the mouse every 50 seconds
+#  keep_awake_v2.ps1 - Prevents screen sleep
+#  using Windows API (no mouse movement)
 # ============================================
-
-$interval = 50      # seconds between each move
 
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 
-public class Mouse {
-    [DllImport("user32.dll")]
-    public static extern bool GetCursorPos(out POINT lpPoint);
+public class SleepUtil {
+    [DllImport("kernel32.dll")]
+    public static extern uint SetThreadExecutionState(uint esFlags);
 
-    [DllImport("user32.dll")]
-    public static extern bool SetCursorPos(int X, int Y);
-
-    public struct POINT { public int X; public int Y; }
+    public const uint ES_CONTINUOUS       = 0x80000000;
+    public const uint ES_SYSTEM_REQUIRED  = 0x00000001;
+    public const uint ES_DISPLAY_REQUIRED = 0x00000002;
 }
 "@
 
-Write-Host "keep_awake started (interval: ${interval}s)"
+# Tell Windows: keep system + screen awake indefinitely
+[SleepUtil]::SetThreadExecutionState(
+    [SleepUtil]::ES_CONTINUOUS -bor
+    [SleepUtil]::ES_SYSTEM_REQUIRED -bor
+    [SleepUtil]::ES_DISPLAY_REQUIRED
+) | Out-Null
+
+Write-Host "keep_awake started - screen will NOT sleep"
 Write-Host "Stop with: Ctrl+C"
-Write-Host ""
-
-# Movement patterns: list of (dx, dy) steps
-$patterns = @(
-    @(  50,   0),   # right
-    @(   0,  50),   # down
-    @( -50,   0),   # left
-    @(   0, -50),   # up
-    @(  80,  80),   # diagonal down-right
-    @( -80,  80),   # diagonal down-left
-    @(  80, -80),   # diagonal up-right
-    @( -80, -80)    # diagonal up-left
-)
-
-$step = 0
 
 try {
     while ($true) {
-        $point = New-Object Mouse+POINT
-        [Mouse]::GetCursorPos([ref]$point) | Out-Null
-
-        $origX = $point.X
-        $origY = $point.Y
-
-        # Pick next pattern in rotation
-        $move = $patterns[$step % $patterns.Length]
-        $step++
-
-        $newX = $origX + $move[0]
-        $newY = $origY + $move[1]
-
-        # Move to new position
-        [Mouse]::SetCursorPos($newX, $newY) | Out-Null
-        Start-Sleep -Milliseconds 300
-
-        # Move back to original position
-        [Mouse]::SetCursorPos($origX, $origY) | Out-Null
-
-        Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))] Moved ($($move[0]), $($move[1])) -> back to ($origX, $origY)"
-        Start-Sleep -Seconds $interval
+        Write-Host "[$([datetime]::Now.ToString('HH:mm:ss'))] Awake..."
+        Start-Sleep -Seconds 60
     }
 }
 finally {
-    Write-Host ""
-    Write-Host "keep_awake stopped."
+    # Release: allow Windows to sleep again
+    [SleepUtil]::SetThreadExecutionState([SleepUtil]::ES_CONTINUOUS) | Out-Null
+    Write-Host "keep_awake stopped - sleep restored."
 }
